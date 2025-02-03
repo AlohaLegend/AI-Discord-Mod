@@ -1,6 +1,15 @@
 from transformers import pipeline
 from PIL import Image, ImageFile
-import openai
+from openai import AsyncOpenAI
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+aclient = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -23,14 +32,13 @@ async def image_is_safe(sensitivity):
 
 
 async def message_is_safe(message, apikey):
-    openai.api_key = apikey
 
-    response = openai.Moderation.create(
-        input = message
-    )
     try:
-        if response["results"][0]["flagged"]:
+        response = await aclient.moderations.create(input=message)
+        print(response)
+        if response.results[0].flagged:
             return False
         return True
-    except:
-        message_is_safe(message, apikey)
+    except Exception as e:
+        print(f"Error: {e}")
+        return await message_is_safe(message, apikey)

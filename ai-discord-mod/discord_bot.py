@@ -103,7 +103,7 @@ async def set_logs_channel(interaction: discord.Interaction, logs_channel_id: st
         return
     try:
         servers[str(interaction.guild.id)] = servers.get(str(interaction.guild.id), {})
-        servers[str(interaction.guild.id)]['logs_channel_id'] = logs_channel_id
+        servers[str(interaction.guild.id)]['logs_channel_id'] = logs_channel_id[2:-1]
         await save_servers()
         await interaction.response.send_message(f"**Successfully set logs channel id to: {logs_channel_id}**", ephemeral=True)
     except:
@@ -314,6 +314,7 @@ async def on_message(message):
 
         logs_channel_id = servers[str(guild.id)].get('logs_channel_id', None)
         if logs_channel_id:
+            print(str(logs_channel_id))
             logs_channel = bot.get_channel(int(logs_channel_id))
             await logs_channel.send(f"Deleted a message from {sent_message.author.mention} because it was inappropriate. The message was: '{sent_message.content}'")
 
