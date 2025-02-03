@@ -252,10 +252,8 @@ async def on_message(message):
     await bot.wait_until_ready()
     if message.author.id == bot.user.id:
         return
-    
     sent_message = message
     guild = message.guild
-    
     if str(guild.id) not in servers:  # If server is not in servers, add it
         servers[str(guild.id)] = {'use_warnings': False, 'warnings': 3, 'mute_time': '10m'}
         await save_servers()
@@ -266,59 +264,78 @@ async def on_message(message):
     if str(guild.id) not in warning_list:
         warning_list[str(guild.id)] = {}
         await save_warnings()
+    
 
-    # OpenAI Moderation Check
-    if not await message_is_safe(message.content, OPENAI_API_KEY):
-        try:
-            # ✅ Instead of deleting, react to the message
-            await message.add_reaction("🚫")  # Adds a 🚫 emoji reaction
-            
-            logs_channel_id = servers[str(guild.id)].get('logs_channel_id', None)
-            if logs_channel_id:
-                logs_channel = bot.get_channel(int(logs_channel_id))
-                await logs_channel.send(
-                    f"Reacted to {sent_message.author.mention}'s message because it was inappropriate. "
-                    f"Message content: '{sent_message.content}'"
-                )
-
-            # ✅ Warn user instead of deleting message
-            if not use_warnings:
-                await sent_message.channel.send(
-                    f"{sent_message.author.mention}, your message was flagged as inappropriate. 🚫"
-                )
+    if USE_TRIGGERING_WORDS == "True":
+            if not any(map(message.content.__contains__, TRIGGERING_WORDS)):
                 return
-
-            # ✅ Handle Warnings
-            if message.author.id in warning_list[str(guild.id)]:
-                warning_list[str(guild.id)][message.author.id] += 1
-                await save_warnings()
-
-                if warning_list[str(guild.id)][message.author.id] >= warnings:
-                    await sent_message.channel.send(
-                        f"{sent_message.author.mention}, your message was flagged as inappropriate. "
-                        f"You have reached the warning limit. Muting you now. 🚫"
-                    )
-                    await tempmute(sent_message.channel, sent_message.author)
-                    warning_list[str(guild.id)][message.author.id] = 0
-                    await save_warnings()
-                else:
-                    remaining_warnings = warnings - warning_list[str(guild.id)][message.author.id]
-                    await sent_message.channel.send(
-                        f"{sent_message.author.mention}, your message was flagged as inappropriate. 🚫 "
-                        f"You have {remaining_warnings} warnings left."
-                    )
             else:
-                warning_list[str(guild.id)][message.author.id] = 1
+                print("Triggering word found in the filter, sending to OpenAI...")
+
+    if message.attachments:
+        attachments = message.attachments
+        for attachment in attachments:
+            if attachment.content_type.startswith("image"):
+                await attachment.save("toModerate.jpeg")
+                sensitivity = servers[str(guild.id)].get('sensitivity', 0.5)
+                result = await image_is_safe(sensitivity=sensitivity)
+
+                if not result:
+                    await sent_message.delete()
+                    print("Deleted a message with an inappropriate image. The message was sent from " + str(sent_message.author.id))
+
+                    logs_channel_id = servers[str(guild.id)].get('logs_channel_id', None)
+                    if logs_channel_id:
+                        logs_channel = bot.get_channel(int(logs_channel_id))
+                        await logs_channel.send(f"Deleted an image from {sent_message.author.mention} because it was inappropriate.")
+
+                    if not use_warnings:
+                        await sent_message.channel.send("Deleted " + sent_message.author.mention + "'s image because it was inappropriate.")
+                        return
+                    if message.author.id in warning_list[str(guild.id)]:
+                        warning_list[str(guild.id)][message.author.id] += 1
+                        await save_warnings()
+                        if warning_list[str(guild.id)][message.author.id] >= warnings:
+                            await sent_message.channel.send("Deleted " + sent_message.author.mention + "'s image because it was inappropriate.")
+                            await tempmute(sent_message.channel, sent_message.author)
+                            warning_list[str(guild.id)][message.author.id] = 0
+                            await save_warnings()
+                        else:
+                            await sent_message.channel.send("Deleted " + sent_message.author.mention + "'s image because it was inappropriate. " + sent_message.author.mention + " has " + str(int(warnings) -  warning_list[str(guild.id)][message.author.id]) + " warnings left.")
+                    else:
+                        warning_list[str(guild.id)][message.author.id] = 1
+                        await save_warnings()
+                        await sent_message.channel.send("Deleted " + sent_message.author.mention + "'s image because it was inappropriate. " + sent_message.author.mention + " has " + str(int(warnings) -  warning_list[str(guild.id)][message.author.id]) + " warnings left.")
+                    return
+    
+    if not message.attachments and not await(message_is_safe(message.content, OPENAI_API_KEY)):
+        await sent_message.delete()
+        print("Deleted an inappropriate message. The message was sent from " + str(sent_message.author.id))
+
+        logs_channel_id = servers[str(guild.id)].get('logs_channel_id', None)
+        if logs_channel_id:
+            print(str(logs_channel_id))
+            logs_channel = bot.get_channel(int(logs_channel_id))
+            await logs_channel.send(f"Deleted a message from {sent_message.author.mention} because it was inappropriate. The message was: '{sent_message.content}'")
+
+        if not use_warnings:
+            await sent_message.channel.send("Deleted " + sent_message.author.mention + "'s message because it was inappropriate.")
+            return
+        if message.author.id in warning_list[str(guild.id)]:
+            warning_list[str(guild.id)][message.author.id] += 1
+            await save_warnings()
+            if warning_list[str(guild.id)][message.author.id] >= warnings:
+                await sent_message.channel.send("Deleted " + sent_message.author.mention + "'s message because it was inappropriate.")
+                await tempmute(sent_message.channel, sent_message.author)
+                warning_list[str(guild.id)][message.author.id] = 0
                 await save_warnings()
-                remaining_warnings = warnings - 1
-                await sent_message.channel.send(
-                    f"{sent_message.author.mention}, your message was flagged as inappropriate. 🚫 "
-                    f"You have {remaining_warnings} warnings left."
-                )
-
-        except Exception as e:
-            print(f"Error handling inappropriate message: {e}")
-
+            else:
+                await sent_message.channel.send("Deleted " + sent_message.author.mention + "'s message because it was inappropriate. " + sent_message.author.mention + " has " + str(int(warnings) -  warning_list[str(guild.id)][message.author.id]) + " warnings left.")
+        else:
+            warning_list[str(guild.id)][message.author.id] = 1
+            await save_warnings()
+            await sent_message.channel.send("Deleted " + sent_message.author.mention + "'s message because it was inappropriate. " + sent_message.author.mention + " has " + str(int(warnings) - warning_list[str(guild.id)][message.author.id]) + " warnings left.")
+    
     await bot.process_commands(message)
 
     @bot.event
