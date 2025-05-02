@@ -5,3 +5,5 @@ pillow
 openai
 torch
 transformers
+pandas
+aiohttp
