@@ -182,6 +182,11 @@ async def delete_flagged_messages(interaction: discord.Interaction, enabled: boo
         f"Flagged messages will now be {'deleted' if enabled else 'preserved with a 🚫 reaction'}.", ephemeral=True
     )
 
+@bot.tree.command(name="stanley", description="Say hi with Stanley!")
+async def stanley(interaction: discord.Interaction):
+    # Replace 'your_emoji_name' and the ID with your actual emoji info
+    await interaction.response.send_message(f"Hi {interaction.user.mention}! Stanley says Hi! <:stanley:1221959011226746950>")
+
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 USE_TRIGGERING_WORDS = os.getenv("USE_TRIGGERING_WORDS")
