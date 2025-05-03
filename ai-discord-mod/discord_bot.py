@@ -69,8 +69,14 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='$', intents=intents)
 
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name="help", description="Shows commands and information for the Sven AI bot.")
 async def aihelp(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+        return
+
     await interaction.response.send_message(
         """
 **Help:**
@@ -96,6 +102,8 @@ set_logs_channel: None (will not log any deletions)
 Also note that the Stanley role should be **ABOVE** all other members, in order to create and enforce the muted role.
 """, ephemeral = True)
 
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name="set_logs_channel", description="Set a server wide channel id for logging messages.")
 @app_commands.describe(logs_channel_id = "Logs Channel ID")
 async def set_logs_channel(interaction: discord.Interaction, logs_channel_id: str):
@@ -110,7 +118,8 @@ async def set_logs_channel(interaction: discord.Interaction, logs_channel_id: st
     except:
         await interaction.response.send_message("**Failed to parse logs channel id. Logs Channel ID must be an integer.**", ephemeral=True)
 
-    
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)    
 @bot.tree.command(name="use_warnings", description="Whether to automatically mute users after a certain amount of warnings.")
 @app_commands.describe(use_warnings = "Use Warnings")
 async def use_warnings(interaction: discord.Interaction, use_warnings: bool):
@@ -122,6 +131,8 @@ async def use_warnings(interaction: discord.Interaction, use_warnings: bool):
     await save_servers()
     await interaction.response.send_message(f"Successfully set use_warnings to **{use_warnings}**.", ephemeral=True)
 
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name="set_sensitivity", description="Set a server wide image moderation sensitivity.")
 @app_commands.describe(sensitivity = "Image Moderation Sensitivity")
 async def set_sensitivity(interaction: discord.Interaction, sensitivity: float):
@@ -139,7 +150,8 @@ async def set_sensitivity(interaction: discord.Interaction, sensitivity: float):
     except:
         await interaction.response.send_message("**Failed to parse sensitivity. Sensitivity must be a number from 0-1.**", ephemeral=True)
 
-
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name="set_warnings", description="Set a server wide warnings limit before muting a member.")
 @app_commands.describe(warning_count = "Warning Count")
 async def set_warnings(interaction: discord.Interaction, warning_count: int):
@@ -155,6 +167,8 @@ async def set_warnings(interaction: discord.Interaction, warning_count: int):
     except:
         await interaction.response.send_message("**Failed to parse warnings. Warnings must be an integer.**", ephemeral=True)
 
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name="set_mute_time", description="Set a server wide mute time to mute a member for.")
 @app_commands.describe(mute_time = "Mute Time")
 async def set_mute_time(interaction: discord.Interaction, mute_time: str):
@@ -169,6 +183,8 @@ async def set_mute_time(interaction: discord.Interaction, mute_time: str):
     except Exception as e:
         await interaction.response.send_message("**Invalid duration input**", ephemeral=True)
 
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
 @bot.tree.command(name="delete_flagged_messages", description="Enable or disable deletion of flagged messages.")
 @app_commands.describe(enabled="Whether flagged messages should be deleted")
 async def delete_flagged_messages(interaction: discord.Interaction, enabled: bool):
