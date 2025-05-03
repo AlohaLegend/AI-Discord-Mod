@@ -221,9 +221,6 @@ if not BOT_TOKEN or not OPENAI_API_KEY:
     print("You did not set your .env file correctly.")
     exit()
 
-
-from datetime import timedelta
-
 from datetime import timedelta
 
 async def tempmute(interaction_or_channel, member: discord.Member):
