@@ -206,54 +206,60 @@ if not BOT_TOKEN or not OPENAI_API_KEY:
     exit()
 
 
-async def tempmute(ctx, member: discord.Member=None):
-    guild = ctx.guild
+from datetime import timedelta
+
+from datetime import timedelta
+
+async def tempmute(interaction_or_channel, member: discord.Member):
+    guild = member.guild
     warnings = servers[str(guild.id)].get('warnings', 3)
-    time = servers[str(guild.id)].get('mute_time', '10m')
-    reason = f"sending more than {warnings} inappropriate messages."
-    bot_member = guild.get_member(bot.user.id)
+    time_str = servers[str(guild.id)].get('mute_time', '10m')
+    reason = f"Exceeded {warnings} inappropriate messages."
+
     try:
-        seconds = int(time[:-1])
-        duration = time[-1]
-        if duration == "s":
-            seconds = seconds * 1
-        elif duration == "m":
-            seconds = seconds * 60
-        elif duration == "h":
-            seconds = seconds * 60 * 60
-        elif duration == "d":
-            seconds = seconds * 86400
+        duration_num = int(time_str[:-1])
+        unit = time_str[-1]
+        if unit == 's':
+            timeout_duration = timedelta(seconds=duration_num)
+        elif unit == 'm':
+            timeout_duration = timedelta(minutes=duration_num)
+        elif unit == 'h':
+            timeout_duration = timedelta(hours=duration_num)
+        elif unit == 'd':
+            timeout_duration = timedelta(days=duration_num)
         else:
-            await ctx.send("Invalid duration input")
-            return
+            raise ValueError("Invalid time unit")
     except Exception as e:
-        print(e)
-        await ctx.send("Invalid duration input")
+        await interaction_or_channel.send("Invalid mute duration format. Use something like `10m`, `2h`, etc.")
         return
 
-    Muted = discord.utils.get(guild.roles, name="Muted")
-    if not Muted:
-        Muted = await guild.create_role(name="Muted")
-        all_roles = await guild.fetch_roles()
-        for i in range(len(all_roles)):
-            if all_roles[i] in [y for y in bot_member.roles]:
-                role_of_muted = len(all_roles)-i-1
-        try:
-            await Muted.edit(reason=None, position=role_of_muted)
-        except:
-            await ctx.send("**Failed to mute user, ensure that the bot role is above all other roles.**")
-            return
-        for channel in guild.channels:
-            await channel.set_permissions(Muted, speak=False, send_messages=False, read_message_history=True, read_messages=True)
+    try:
+        await member.timeout(timeout_duration, reason=reason)
+        await interaction_or_channel.send(
+            embed=discord.Embed(
+                title="User Timed Out",
+                description=f"{member.mention} was timed out for {time_str} due to repeated inappropriate messages.",
+                color=discord.Color.orange()
+            )
+        )
 
-    await member.add_roles(Muted, reason=reason)
-    muted_embed = discord.Embed(title="Muted User", description=f"{member.mention} was muted for {reason} Muted for {time}.")
-    await ctx.send(embed=muted_embed)
-    await asyncio.sleep(seconds)
-    await member.remove_roles(Muted)
-    unmute_embed = discord.Embed(title="Mute Over!", description=f'{member.mention} is now unmuted.')
-    await ctx.send(embed=unmute_embed)
+        # ✅ Log to logs channel (if configured)
+        logs_channel_id = servers[str(guild.id)].get('logs_channel_id')
+        if logs_channel_id:
+            logs_channel = bot.get_channel(int(logs_channel_id))
+            if logs_channel:
+                await logs_channel.send(
+                    embed=discord.Embed(
+                        title="Timeout Logged",
+                        description=f"{member.mention} was timed out for {time_str}.\nReason: {reason}",
+                        color=discord.Color.dark_orange()
+                    )
+                )
 
+    except discord.Forbidden:
+        await interaction_or_channel.send("I do not have permission to timeout this user.")
+    except Exception as e:
+        await interaction_or_channel.send(f"Failed to timeout: {e}")
 
 @bot.event
 async def on_ready():
