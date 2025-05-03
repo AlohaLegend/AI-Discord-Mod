@@ -80,7 +80,8 @@ set_warnings <warnings>: Sets the number of warnings a user can have before muti
 set_mute_time <time>: Sets the amount of time a user is muted for after having too many warnings. Example: 1d, 3m, 5s, 6h
 use_warnings <boolean>: Whether to use warnings and mute the user, or just only delete the message.
 set_sensitivity <float from 0-1>: The image moderation sensitivity. As sensitivity increases, image moderation becomes more strict, and as sensitivity decreases, image moderation becomes less strict.
-set_logs_channel <channel id>: The logs channel id that Sven will log logs to. Note that Sven must have permission to view and send messages to this channel.
+set_logs_channel <channel id>: The logs channel id that Stanley will log logs to. Note that Stanley must have permission to view and send messages to this channel.
+delete_flagged_messages <true|false>: If true, flagged messages will be deleted instead of reacted to.
 ```
 
 Note the default presets:
@@ -92,7 +93,7 @@ set_sensitivity: 0.5
 set_logs_channel: None (will not log any deletions)
 ```
 
-Also note that the Sven role should be **ABOVE** all other members, in order to create and enforce the muted role.
+Also note that the Stanley role should be **ABOVE** all other members, in order to create and enforce the muted role.
 """, ephemeral = True)
 
 @bot.tree.command(name="set_logs_channel", description="Set a server wide channel id for logging messages.")
@@ -168,6 +169,18 @@ async def set_mute_time(interaction: discord.Interaction, mute_time: str):
     except Exception as e:
         await interaction.response.send_message("**Invalid duration input**", ephemeral=True)
 
+@bot.tree.command(name="delete_flagged_messages", description="Enable or disable deletion of flagged messages.")
+@app_commands.describe(enabled="Whether flagged messages should be deleted")
+async def delete_flagged_messages(interaction: discord.Interaction, enabled: bool):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+        return
+    servers[str(interaction.guild.id)] = servers.get(str(interaction.guild.id), {})
+    servers[str(interaction.guild.id)]['delete_flagged_messages'] = enabled
+    await save_servers()
+    await interaction.response.send_message(
+        f"Flagged messages will now be {'deleted' if enabled else 'preserved with a 🚫 reaction'}.", ephemeral=True
+    )
 
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -271,8 +284,13 @@ async def on_message(message):
     if not await message_is_safe(message.content, OPENAI_API_KEY):
         try:
             # ✅ Instead of deleting, react to the message
-            await message.add_reaction("🚫")  # Adds a 🚫 emoji reaction
+            delete_flagged = servers[str(guild.id)].get('delete_flagged_messages', False)
             
+            if delete_flagged:
+                await message.delete()
+            else:
+                await message.add_reaction("🚫") # Adds a 🚫 emoji reaction
+
             logs_channel_id = servers[str(guild.id)].get('logs_channel_id', None)
             if logs_channel_id:
                 logs_channel = bot.get_channel(int(logs_channel_id))
@@ -321,8 +339,8 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-    @bot.event
-    async def on_message_edit(message_before, message_after):
-        await on_message(message_after)
+@bot.event
+async def on_message_edit(message_before, message_after):
+    await on_message(message_after)
     
 bot.run(BOT_TOKEN)
