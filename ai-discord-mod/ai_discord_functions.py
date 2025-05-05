@@ -57,9 +57,8 @@ async def image_is_safe(sensitivity):
 async def message_is_safe(message, apikey):
     try:
         response = await aclient.moderations.create(input=message)
-        result = response.results[0]  # First moderation result
+        result = response.results[0]
 
-        print(response)
         logging.info(f"Input: {message}")
         logging.info(f"Moderation Results: {response}")
 
@@ -80,17 +79,16 @@ async def message_is_safe(message, apikey):
 
         df.to_csv(LOG_FILE, index=False)
 
-        # ✅ Use custom moderation thresholds
         for cat, is_flagged in vars(result.categories).items():
-            base_cat = cat.split("/")[0]  # e.g., "violence/graphic" → "violence"
-            threshold = moderation_thresholds.get(base_cat, 0.8)  # default if not set
+            base_cat = cat.split("/")[0]
+            threshold = moderation_thresholds.get(base_cat, 0.8)
             score = getattr(result.category_scores, cat, 0.0)
 
             if is_flagged and score >= threshold:
-                return False
+                return False, base_cat, score, threshold  # ✅ modified return
 
-        return True
+        return True, None, None, None  # ✅ modified return
 
     except Exception as e:
         print(f"Error: {e}")
-        return await message_is_safe(message, apikey)
+        return False, None, None, None  # ✅ modified fallback return
