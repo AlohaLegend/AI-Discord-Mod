@@ -316,11 +316,11 @@ async def on_message(message):
     await bot.wait_until_ready()
     if message.author.id == bot.user.id:
         return
-    
+
     sent_message = message
     guild = message.guild
-    
-    if str(guild.id) not in servers:  # If server is not in servers, add it
+
+    if str(guild.id) not in servers:
         servers[str(guild.id)] = {'use_warnings': False, 'warnings': 3, 'mute_time': '10m'}
         await save_servers()
 
@@ -331,33 +331,38 @@ async def on_message(message):
         warning_list[str(guild.id)] = {}
         await save_warnings()
 
-    # OpenAI Moderation Check
-    if not await message_is_safe(message.content, OPENAI_API_KEY):
+    # ✅ OpenAI Moderation Check with category logging
+    is_safe, flagged_category, flagged_score, flagged_threshold = await message_is_safe(
+        message.content, OPENAI_API_KEY
+    )
+
+    if not is_safe:
         try:
-            # ✅ Instead of deleting, react to the message
             delete_flagged = servers[str(guild.id)].get('delete_flagged_messages', False)
-            
+
             if delete_flagged:
                 await message.delete()
             else:
-                await message.add_reaction("🚫") # Adds a 🚫 emoji reaction
+                await message.add_reaction("🚫")
 
-            logs_channel_id = servers[str(guild.id)].get('logs_channel_id', None)
+            logs_channel_id = servers[str(guild.id)].get('logs_channel_id')
             if logs_channel_id:
                 logs_channel = bot.get_channel(int(logs_channel_id))
-                await logs_channel.send(
-                    f"Reacted to {sent_message.author.mention}'s message because it was inappropriate. "
-                    f"Message content: '{sent_message.content}'"
-                )
+                if logs_channel:
+                    await logs_channel.send(
+                        f"Reacted to {sent_message.author.mention}'s message because it was inappropriate.\n"
+                        f"Message content: '{sent_message.content}'\n"
+                        f"Flagged category: **{flagged_category}**, "
+                        f"Score: **{flagged_score:.2f}**, Threshold: **{flagged_threshold:.2f}**"
+                    )
 
-            # ✅ Warn user instead of deleting message
             if not use_warnings:
                 await sent_message.channel.send(
                     f"{sent_message.author.mention}, your message was flagged as inappropriate. 🚫"
                 )
                 return
 
-            # ✅ Handle Warnings
+            # Handle Warnings
             if message.author.id in warning_list[str(guild.id)]:
                 warning_list[str(guild.id)][message.author.id] += 1
                 await save_warnings()
@@ -371,24 +376,25 @@ async def on_message(message):
                     warning_list[str(guild.id)][message.author.id] = 0
                     await save_warnings()
                 else:
-                    remaining_warnings = warnings - warning_list[str(guild.id)][message.author.id]
+                    remaining = warnings - warning_list[str(guild.id)][message.author.id]
                     await sent_message.channel.send(
                         f"{sent_message.author.mention}, your message was flagged as inappropriate. 🚫 "
-                        f"You have {remaining_warnings} warnings left."
+                        f"You have {remaining} warnings left."
                     )
             else:
                 warning_list[str(guild.id)][message.author.id] = 1
                 await save_warnings()
-                remaining_warnings = warnings - 1
+                remaining = warnings - 1
                 await sent_message.channel.send(
                     f"{sent_message.author.mention}, your message was flagged as inappropriate. 🚫 "
-                    f"You have {remaining_warnings} warnings left."
+                    f"You have {remaining} warnings left."
                 )
 
         except Exception as e:
             print(f"Error handling inappropriate message: {e}")
 
     await bot.process_commands(message)
+
 
 @bot.event
 async def on_message_edit(message_before, message_after):
