@@ -195,8 +195,35 @@ async def delete_flagged_messages(interaction: discord.Interaction, enabled: boo
     servers[str(interaction.guild.id)]['delete_flagged_messages'] = enabled
     await save_servers()
     await interaction.response.send_message(
-        f"Flagged messages will now be {'deleted' if enabled else 'preserved with a 🚫 reaction'}.", ephemeral=True
-    )
+        f"Flagged messages will now be {'deleted' if enabled else 'preserved with a 🚫 reaction'}.", ephemeral=True)
+
+@bot.tree.command(name="set_threshold", description="Set moderation threshold for a specific category.")
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(category="Moderation category", threshold="Threshold from 0.0 to 1.0")
+async def set_threshold(interaction: discord.Interaction, category: str, threshold: float):
+    valid_categories = ["harassment", "hate", "violence", "sexual", "self_harm"]
+    category = category.lower()
+
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+        return
+
+    if category not in valid_categories:
+        await interaction.response.send_message(f"Invalid category. Choose from: {', '.join(valid_categories)}", ephemeral=True)
+        return
+
+    if not (0.0 <= threshold <= 1.0):
+        await interaction.response.send_message("Threshold must be between 0.0 and 1.0", ephemeral=True)
+        return
+
+    server_id = str(interaction.guild.id)
+    servers.setdefault(server_id, {})
+    servers[server_id].setdefault("moderation_thresholds", {})
+    servers[server_id]["moderation_thresholds"][category] = threshold
+    await save_servers()
+
+    await interaction.response.send_message(f"Set **{category}** threshold to **{threshold}**", ephemeral=True)
 
 @bot.tree.command(name="stanley", description="Say hi with Stanley!")
 async def stanley(interaction: discord.Interaction):
