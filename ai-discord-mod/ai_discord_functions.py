@@ -5,6 +5,7 @@ import os
 import logging
 import sys 
 import pandas as pd 
+import json
 
 from dotenv import load_dotenv
 
@@ -19,6 +20,15 @@ LOG_FILE = "moderation_log.csv"
 
 
 load_dotenv()
+
+# Load global moderation thresholds from servers.json
+try:
+    with open("servers.json", "r") as f:
+        servers = json.load(f)
+        moderation_thresholds = servers.get("moderation_thresholds", {})
+except:
+    moderation_thresholds = {}  # Fallback to empty
+
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -45,44 +55,42 @@ async def image_is_safe(sensitivity):
 
 
 async def message_is_safe(message, apikey):
-
     try:
         response = await aclient.moderations.create(input=message)
         result = response.results[0]  # First moderation result
 
         print(response)
-        # Log the input and response
         logging.info(f"Input: {message}")
         logging.info(f"Moderation Results: {response}")
-        print("0")
+
         flagged_categories = {cat: getattr(result.categories, cat) for cat in vars(result.categories)}
         flagged_scores = {f"S{cat}": getattr(result.category_scores, cat) for cat in vars(result.category_scores)}
-        print("1")
 
-        # Prepare log entry as DataFrame
         log_entry = pd.DataFrame([{ "Input": message, **flagged_categories, **flagged_scores }])
 
-        print("2")
-
-        # Log the result in a CSV file
         try:
             df = pd.read_csv(LOG_FILE)
         except FileNotFoundError:
             df = pd.DataFrame(columns=["Input"] + list(flagged_categories.keys()) + list(flagged_scores.keys()))
 
-        # Concatenate new log entry
         if df.empty:
-            df = log_entry  # Directly assign log_entry if df is empty
+            df = log_entry
         else:
             df = pd.concat([df, log_entry], ignore_index=True)
 
-        # Save back to CSV
         df.to_csv(LOG_FILE, index=False)
 
+        # ✅ Use custom moderation thresholds
+        for cat, is_flagged in vars(result.categories).items():
+            base_cat = cat.split("/")[0]  # e.g., "violence/graphic" → "violence"
+            threshold = moderation_thresholds.get(base_cat, 0.8)  # default if not set
+            score = getattr(result.category_scores, cat, 0.0)
 
-        if response.results[0].flagged:
-            return False
+            if is_flagged and score >= threshold:
+                return False
+
         return True
+
     except Exception as e:
         print(f"Error: {e}")
         return await message_is_safe(message, apikey)
