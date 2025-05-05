@@ -221,7 +221,6 @@ async def set_threshold(interaction: discord.Interaction, category: str, thresho
     servers.setdefault(server_id, {})
     servers[server_id].setdefault("moderation_thresholds", {})
     servers[server_id]["moderation_thresholds"][category] = threshold
-    await save_servers()
 
     await interaction.response.send_message(f"Set **{category}** threshold to **{threshold}**", ephemeral=True)
 
