@@ -394,9 +394,10 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-
 @bot.event
 async def on_message_edit(message_before, message_after):
+    if message_after.content.startswith(bot.command_prefix):
+        return
     await on_message(message_after)
     
 bot.run(BOT_TOKEN)
