@@ -7,3 +7,4 @@ torch
 transformers
 pandas
 aiohttp
+json
