@@ -54,7 +54,7 @@ async def image_is_safe(sensitivity):
     return True
 
 
-async def message_is_safe(message, apikey):
+async def message_is_safe(message, apikey, servers, guild_id):
     try:
         response = await aclient.moderations.create(input=message)
         result = response.results[0]
@@ -72,23 +72,21 @@ async def message_is_safe(message, apikey):
         except FileNotFoundError:
             df = pd.DataFrame(columns=["Input"] + list(flagged_categories.keys()) + list(flagged_scores.keys()))
 
-        if df.empty:
-            df = log_entry
-        else:
-            df = pd.concat([df, log_entry], ignore_index=True)
-
+        df = pd.concat([df, log_entry], ignore_index=True)
         df.to_csv(LOG_FILE, index=False)
+
+        thresholds = servers.get(str(guild_id), {}).get("moderation_thresholds", {})
 
         for cat, is_flagged in vars(result.categories).items():
             base_cat = cat.split("/")[0]
-            threshold = moderation_thresholds.get(base_cat, 0.8)
+            threshold = thresholds.get(base_cat, 0.8)
             score = getattr(result.category_scores, cat, 0.0)
 
             if is_flagged and score >= threshold:
-                return False, base_cat, score, threshold  # ✅ modified return
+                return False, base_cat, score, threshold
 
-        return True, None, None, None  # ✅ modified return
+        return True, None, None, None
 
     except Exception as e:
         print(f"Error: {e}")
-        return False, None, None, None  # ✅ modified fallback return
+        return False, None, None, None
