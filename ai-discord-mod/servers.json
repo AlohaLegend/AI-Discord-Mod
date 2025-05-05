@@ -1,0 +1,14 @@
+{
+  "use_warnings": false,
+  "warnings": 3,
+  "mute_time": "10m",
+  "sensitivity": 0.5,
+  "delete_flagged_messages": false,
+  "moderation_thresholds": {
+    "harassment": 0.85,
+    "hate": 0.85,
+    "violence": 0.85,
+    "sexual": 0.85,
+    "self_harm": 0.85
+  }
+}
