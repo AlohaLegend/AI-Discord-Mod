@@ -330,10 +330,10 @@ async def on_message(message):
         warning_list[str(guild.id)] = {}
         await save_warnings()
 
-    # ✅ OpenAI Moderation Check with category logging
-    is_safe, flagged_category, flagged_score, flagged_threshold = await message_is_safe(
-        message.content, OPENAI_API_KEY
-    )
+# ✅ OpenAI Moderation Check with updated threshold logic
+is_safe, flagged_category, flagged_score, flagged_threshold = await message_is_safe(
+    message.content, OPENAI_API_KEY, servers, guild.id
+)
 
     if not is_safe:
         try:
