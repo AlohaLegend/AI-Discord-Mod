@@ -69,7 +69,7 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='$', intents=intents)
 
-@bot.tree.command(name="help", description="Shows commands and information for the Sven AI bot.")
+@bot.tree.command(name="help", description="Shows commands and information for the Stanley AI bot.")
 @app_commands.guild_only()
 @app_commands.default_permissions(administrator=True)
 async def aihelp(interaction: discord.Interaction):
@@ -82,12 +82,14 @@ async def aihelp(interaction: discord.Interaction):
 **Help:**
 ```
 help: Shows this information.
-set_warnings <warnings>: Sets the number of warnings a user can have before muting them.
-set_mute_time <time>: Sets the amount of time a user is muted for after having too many warnings. Example: 1d, 3m, 5s, 6h
-use_warnings <boolean>: Whether to use warnings and mute the user, or just only delete the message.
-set_sensitivity <float from 0-1>: The image moderation sensitivity. As sensitivity increases, image moderation becomes more strict, and as sensitivity decreases, image moderation becomes less strict.
-set_logs_channel <channel id>: The logs channel id that Stanley will log logs to. Note that Stanley must have permission to view and send messages to this channel.
-delete_flagged_messages <true|false>: If true, flagged messages will be deleted instead of reacted to.
+set_warnings <warnings>: Sets the number of warnings a user can have before muting them. Set to 0 to mute immediately on first offense.
+set_mute_time <time>: Sets the amount of time a user is muted after reaching the warning limit. Example: 1d, 3m, 5s, 6h
+use_warnings <boolean>: Toggle whether Stanley uses a warning system before muting or acts immediately.
+set_sensitivity <float from 0-1>: Adjusts the image moderation strictness. 0 = lenient, 1 = strict.
+set_threshold <category> <threshold>: Set category-specific moderation thresholds. Categories: harassment, hate, violence, sexual, self_harm
+show_thresholds: Displays the current thresholds for all moderation categories.
+set_logs_channel <channel id>: Sets the channel where Stanley logs flagged messages. Stanley needs permission to send messages there.
+delete_flagged_messages <true|false>: If true, flagged messages will be deleted. If false, Stanley will react with 🚫 instead.
 ```
 
 Note the default presets:
@@ -99,7 +101,6 @@ set_sensitivity: 0.5
 set_logs_channel: None (will not log any deletions)
 ```
 
-Also note that the Stanley role should be **ABOVE** all other members, in order to create and enforce the muted role.
 """, ephemeral = True)
 
 @bot.tree.command(name="set_logs_channel", description="Set a server wide channel id for logging messages.")
@@ -294,7 +295,7 @@ async def tempmute(interaction_or_channel, member: discord.Member):
         await interaction_or_channel.send(
             embed=discord.Embed(
                 title="User Timed Out",
-                description=f"{member.mention} was timed out for {time_str} due to repeated inappropriate messages.",
+                description=f"{member.mention} was timed out for {time_str} due to inappropriate message.",
                 color=discord.Color.orange()
             )
         )
