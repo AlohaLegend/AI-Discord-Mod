@@ -360,6 +360,14 @@ async def on_message(message):
                     f"{sent_message.author.mention}, your message was flagged as inappropriate. 🚫"
                 )
                 return
+                
+            if use_warnings and warnings == 0:
+                await sent_message.channel.send(
+                    f"{sent_message.author.mention}, your message was flagged as inappropriate. "
+                    f"You are being muted immediately. 🚫"
+                )
+                await tempmute(sent_message.channel, sent_message.author)
+                return
 
             # Handle Warnings
             if message.author.id in warning_list[str(guild.id)]:
