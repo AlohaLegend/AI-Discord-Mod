@@ -224,6 +224,23 @@ async def set_threshold(interaction: discord.Interaction, category: str, thresho
 
     await interaction.response.send_message(f"Set **{category}** threshold to **{threshold}**", ephemeral=True)
 
+@bot.tree.command(name="show_thresholds", description="Displays all moderation thresholds set for this server.")
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+async def show_thresholds(interaction: discord.Interaction):
+    server_id = str(interaction.guild.id)
+    thresholds = servers.get(server_id, {}).get("moderation_thresholds", {})
+
+    if not thresholds:
+        await interaction.response.send_message("No custom moderation thresholds have been set for this server.", ephemeral=True)
+        return
+
+    formatted = "\n".join([f"**{cat}**: {thresh}" for cat, thresh in thresholds.items()])
+    await interaction.response.send_message(
+        f"**Current Moderation Thresholds:**\n{formatted}",
+        ephemeral=True
+    )
+
 @bot.tree.command(name="stanley", description="Say hi with Stanley!")
 async def stanley(interaction: discord.Interaction):
     # Replace 'your_emoji_name' and the ID with your actual emoji info
