@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 from discord.ext.commands import has_permissions, MissingPermissions
-from ai_discord_functions import image_is_safe, message_is_safe
+from ai_discord_functions import message_is_safe
 from discord import app_commands
 import os
 from dotenv import load_dotenv
@@ -132,24 +132,24 @@ async def use_warnings(interaction: discord.Interaction, use_warnings: bool):
     await save_servers()
     await interaction.response.send_message(f"Successfully set use_warnings to **{use_warnings}**.", ephemeral=True)
 
-@bot.tree.command(name="set_sensitivity", description="Set a server wide image moderation sensitivity.")
-@app_commands.guild_only()
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(sensitivity = "Image Moderation Sensitivity")
-async def set_sensitivity(interaction: discord.Interaction, sensitivity: float):
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message(f"You do not have permission to use this command.", ephemeral=True)
-        return
-    if sensitivity > 1:
-        await interaction.response.send_message("**Failed to parse sensitivity. Sensitivity must be a number from 0-1.**", ephemeral=True)
-        return
-    try:
-        servers[str(interaction.guild.id)] = servers.get(str(interaction.guild.id), {})
-        servers[str(interaction.guild.id)]['sensitivity'] = sensitivity
-        await save_servers()
-        await interaction.response.send_message(f"**Successfully set image moderation sensitivity to: {sensitivity}**", ephemeral=True)
-    except:
-        await interaction.response.send_message("**Failed to parse sensitivity. Sensitivity must be a number from 0-1.**", ephemeral=True)
+# @bot.tree.command(name="set_sensitivity", description="Set a server wide image moderation sensitivity.")
+# @app_commands.guild_only()
+# @app_commands.default_permissions(administrator=True)
+# @app_commands.describe(sensitivity = "Image Moderation Sensitivity")
+# async def set_sensitivity(interaction: discord.Interaction, sensitivity: float):
+#     if not interaction.user.guild_permissions.administrator:
+#         await interaction.response.send_message(f"You do not have permission to use this command.", ephemeral=True)
+#         return
+#     if sensitivity > 1:
+#         await interaction.response.send_message("**Failed to parse sensitivity. Sensitivity must be a number from 0-1.**", ephemeral=True)
+#         return
+#     try:
+#         servers[str(interaction.guild.id)] = servers.get(str(interaction.guild.id), {})
+#         servers[str(interaction.guild.id)]['sensitivity'] = sensitivity
+#         await save_servers()
+#         await interaction.response.send_message(f"**Successfully set image moderation sensitivity to: {sensitivity}**", ephemeral=True)
+#     except:
+#         await interaction.response.send_message("**Failed to parse sensitivity. Sensitivity must be a number from 0-1.**", ephemeral=True)
 
 @bot.tree.command(name="set_warnings", description="Set a server wide warnings limit before muting a member.")
 @app_commands.guild_only()
