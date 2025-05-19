@@ -1,22 +1,20 @@
-from transformers import pipeline
-from PIL import Image, ImageFile
+# from transformers import pipeline
+# from PIL import Image, ImageFile
 from openai import AsyncOpenAI
 import os
 import logging
-import sys 
 import json
-
+import csv
 from dotenv import load_dotenv
 
 # Set up logging
 logging.basicConfig(
-    filename="moderation_log.txt",  # Log file name
-    level=logging.INFO,             # Log level
-    format="%(asctime)s - %(levelname)s - %(message)s"  # Log format
+    filename="moderation_log.txt",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
 )
-# Define log file
-LOG_FILE = "moderation_log.csv"
 
+LOG_FILE = "moderation_log.csv"
 
 load_dotenv()
 
@@ -26,32 +24,31 @@ try:
         servers = json.load(f)
         moderation_thresholds = servers.get("moderation_thresholds", {})
 except:
-    moderation_thresholds = {}  # Fallback to empty
-
+    moderation_thresholds = {}
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 aclient = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-ImageFile.LOAD_TRUNCATED_IMAGES = True
+# Image moderation temporarily disabled
+# ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-async def image_is_safe(sensitivity):
-    from transformers import pipeline
-    vqa_pipeline = pipeline("visual-question-answering")
+# async def image_is_safe(sensitivity):
+#     from transformers import pipeline
+#     vqa_pipeline = pipeline("visual-question-answering")
     
-    image = Image.open("toModerate.jpeg")
-    question = "Does the image contain pornographic, adult, gore, sexual, or other NSFW content?"
-    sensitivity = 1 - sensitivity
-    result = vqa_pipeline(image, question, top_k=1)[0]
-    answer = result["answer"].lower()
+#     image = Image.open("toModerate.jpeg")
+#     question = "Does the image contain pornographic, adult, gore, sexual, or other NSFW content?"
+#     sensitivity = 1 - sensitivity
+#     result = vqa_pipeline(image, question, top_k=1)[0]
+#     answer = result["answer"].lower()
 
-    print(result)
+#     print(result)
 
-    if result["score"] > sensitivity and answer.startswith("y"):
-        return False
-    elif result["score"] < sensitivity and answer.startswith("n"):
-        return False
-    return True
+#     if result["score"] > sensitivity and answer.startswith("y"):
+#         return False
+#     elif result["score"] < sensitivity and answer.startswith("n"):
+#         return False
+#     return True
 
 async def message_is_safe(message, apikey, servers, guild_id):
     try:
@@ -65,12 +62,10 @@ async def message_is_safe(message, apikey, servers, guild_id):
         flagged_scores = {f"S{cat}": getattr(result.category_scores, cat) for cat in vars(result.category_scores)}
 
         log_row = [message] + list(flagged_categories.values()) + list(flagged_scores.values())
-
         header = ["Input"] + list(flagged_categories.keys()) + list(flagged_scores.keys())
         file_exists = os.path.isfile(LOG_FILE)
 
         with open(LOG_FILE, "a", newline="", encoding="utf-8") as f:
-            import csv
             writer = csv.writer(f)
             if not file_exists:
                 writer.writerow(header)
