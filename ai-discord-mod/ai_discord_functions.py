@@ -4,7 +4,6 @@ from openai import AsyncOpenAI
 import os
 import logging
 import sys 
-import pandas as pd 
 import json
 
 from dotenv import load_dotenv
@@ -36,10 +35,11 @@ aclient = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-vqa_pipeline = pipeline("visual-question-answering")
-
 async def image_is_safe(sensitivity):
-    image =  Image.open("toModerate.jpeg")
+    from transformers import pipeline
+    vqa_pipeline = pipeline("visual-question-answering")
+    
+    image = Image.open("toModerate.jpeg")
     question = "Does the image contain pornographic, adult, gore, sexual, or other NSFW content?"
     sensitivity = 1 - sensitivity
     result = vqa_pipeline(image, question, top_k=1)[0]
@@ -53,7 +53,6 @@ async def image_is_safe(sensitivity):
         return False
     return True
 
-
 async def message_is_safe(message, apikey, servers, guild_id):
     try:
         response = await aclient.moderations.create(input=message)
@@ -65,15 +64,17 @@ async def message_is_safe(message, apikey, servers, guild_id):
         flagged_categories = {cat: getattr(result.categories, cat) for cat in vars(result.categories)}
         flagged_scores = {f"S{cat}": getattr(result.category_scores, cat) for cat in vars(result.category_scores)}
 
-        log_entry = pd.DataFrame([{ "Input": message, **flagged_categories, **flagged_scores }])
+        log_row = [message] + list(flagged_categories.values()) + list(flagged_scores.values())
 
-        try:
-            df = pd.read_csv(LOG_FILE)
-        except FileNotFoundError:
-            df = pd.DataFrame(columns=["Input"] + list(flagged_categories.keys()) + list(flagged_scores.keys()))
+        header = ["Input"] + list(flagged_categories.keys()) + list(flagged_scores.keys())
+        file_exists = os.path.isfile(LOG_FILE)
 
-        df = pd.concat([df, log_entry], ignore_index=True)
-        df.to_csv(LOG_FILE, index=False)
+        with open(LOG_FILE, "a", newline="", encoding="utf-8") as f:
+            import csv
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(header)
+            writer.writerow(log_row)
 
         thresholds = servers.get(str(guild_id), {}).get("moderation_thresholds", {})
 
